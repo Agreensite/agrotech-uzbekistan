@@ -1,0 +1,67 @@
+/agrotech-uz
+│
+├── /frontend           # Веб-интерфейс (Карта + Дашборд)
+│   └── index.html
+│
+├── /backend            # Серверная часть (API + ИИ)
+│   ├── main.py         # FastAPI приложение
+│   ├── models.py       # Логика ИИ и расчетов
+│   └── requirements.txt
+│
+├── /bot                # Telegram бот
+│   └── bot.py
+│
+└── README.md           # Описание проекта
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroTech Uzbekistan - Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <style>
+        #map { height: 600px; width: 100%; border-radius: 12px; }
+        .info-panel { padding: 20px; background: #f8f9fa; border-radius: 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-panel">
+        <button onclick="saveToBackend()">📊 Анализировать и сохранить поле</button>
+        <pre id="output">Результаты ИИ появятся здесь...</pre>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script>
+        const map = L.map('map').setView([39.8977, 66.2651], 13);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        const drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems },
+            draw: { polygon: true, polyline: false, circle: false, marker: false, rectangle: true }
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, (e) => drawnItems.addLayer(e.layer));
+
+        async function saveToBackend() {
+            const data = drawnItems.toGeoJSON();
+            const response = await fetch('http://localhost:8000/api/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    farmer_id: 1,
+                    geometry: data
+                })
+            });
+            const result = await response.json();
+            document.getElementById('output').textContent = JSON.stringify(result, null, 2);
+        }
+    </script>
+</body>
+</html>
